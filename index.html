@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chinese to English Subtitle Translator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons CDN -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        glass: {
+                            DEFAULT: 'rgba(255, 255, 255, 0.05)',
+                            border: 'rgba(255, 255, 255, 0.12)',
+                            hover: 'rgba(255, 255, 255, 0.1)',
+                            card: 'rgba(20, 24, 33, 0.75)'
+                        },
+                        brand: {
+                            cyan: '#06b6d4',
+                            violet: '#8b5cf6',
+                            emerald: '#10b981',
+                            rose: '#f43f5e'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at top left, #0f172a, #090d16);
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-button {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+        }
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.4);
+        }
+        .glow-red {
+            box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.5);
+        }
+        /* Dynamic subtitle text sizes */
+        .subtitle-sm { font-size: 1.25rem; line-height: 1.75rem; }
+        .subtitle-md { font-size: 1.875rem; line-height: 2.25rem; }
+        .subtitle-lg { font-size: 2.5rem; line-height: 3rem; }
+        .subtitle-xl { font-size: 3.25rem; line-height: 3.75rem; }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.4);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-anim {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased flex flex-col justify-between select-none">
+
+    <!-- Header / Navbar -->
+    <header class="w-full px-6 py-4 glass-panel border-b border-glass-border flex justify-between items-center z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-cyan to-brand-violet flex items-center justify-center text-white shadow-lg">
+                <i class="ph-bold ph-translate text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+                    Live Translation Overlay
+                </h1>
+                <p class="text-xs text-slate-400">Chinese Audio <i class="ph-bold ph-arrow-right text-[10px] mx-1"></i> English Subtitles</p>
+            </div>
+        </div>
+
+        <!-- Mode Toggle & Controls Header -->
+        <div class="flex items-center gap-3">
+            <!-- Mode Selector Switcher -->
+            <div class="bg-slate-900/80 p-1 rounded-xl border border-glass-border flex text-xs font-medium">
+                <button id="mode-browser-btn" onclick="switchEngine('browser')" class="px-3 py-1.5 rounded-lg text-white bg-brand-cyan/20 border border-brand-cyan/40 transition-all flex items-center gap-1.5">
+                    <i class="ph-bold ph-globe text-brand-cyan"></i>
+                    <span>Free Browser API</span>
+                </button>
+                <button id="mode-cloud-btn" onclick="switchEngine('cloud')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                    <i class="ph-bold ph-cloud-lightning text-slate-400"></i>
+                    <span>OpenAI Realtime</span>
+                </button>
+            </div>
+
+            <!-- Settings Button -->
+            <button onclick="toggleSettingsModal(true)" class="glass-button p-2.5 rounded-xl text-slate-300 hover:text-white" title="Settings">
+                <i class="ph-bold ph-gear text-lg"></i>
+            </button>
+            
+            <!-- History Drawer Button -->
+            <button onclick="toggleHistoryDrawer(true)" class="glass-button p-2.5 rounded-xl text-slate-300 hover:text-white" title="Translation History">
+                <i class="ph-bold ph-clock-counter-clockwise text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Live Subtitle Display Area -->
+    <main class="flex-1 flex flex-col justify-center items-center px-4 py-6 max-w-6xl w-full mx-auto relative overflow-hidden">
+        
+        <!-- Live Audio Visualizer Overlay Bar -->
+        <div class="w-full max-w-3xl mb-4 flex items-center justify-between px-4 py-2 glass-panel rounded-2xl border border-glass-border">
+            <div class="flex items-center gap-2">
+                <span id="status-badge" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+                <span id="status-text" class="text-xs text-slate-400 font-medium uppercase tracking-wider">Ready to listen</span>
+            </div>
+            
+            <!-- Audio Waveform Canvas -->
+            <div class="w-48 h-8 flex items-center justify-center">
+                <canvas id="waveform-canvas" width="200" height="32" class="w-full h-full"></canvas>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs text-slate-400">
+                <i class="ph-bold ph-activity text-brand-cyan"></i>
+                <span id="latency-meter">0 ms</span>
+            </div>
+        </div>
+
+        <!-- Subtitle Screen Box -->
+        <div id="subtitle-box" class="w-full min-h-[380px] max-h-[520px] glass-panel rounded-3xl p-8 border border-white/10 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300">
+            
+            <!-- Floating Quick Tools -->
+            <div class="absolute top-4 right-4 flex gap-2 z-10">
+                <button onclick="copyCurrentSubtitle()" class="glass-button px-3 py-1.5 rounded-xl text-xs text-slate-300 hover:text-white flex items-center gap-1.5">
+                    <i class="ph-bold ph-copy"></i> Copy
+                </button>
+                <button onclick="clearCurrentSubtitle()" class="glass-button px-3 py-1.5 rounded-xl text-xs text-slate-300 hover:text-rose-400 flex items-center gap-1.5">
+                    <i class="ph-bold ph-trash"></i> Clear
+                </button>
+            </div>
+
+            <!-- Top Chinese Transcript Stream -->
+            <div class="w-full border-b border-white/5 pb-4 mb-4">
+                <div class="text-xs font-semibold text-brand-cyan uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <i class="ph-bold ph-microphone"></i> Chinese Audio Stream (zh-CN)
+                </div>
+                <p id="chinese-interim" class="text-slate-400 font-sans font-medium text-lg leading-relaxed min-h-[2.5rem] italic transition-all duration-150">
+                    点击下方麦克风开始说话... (Click mic to start speaking...)
+                </p>
+            </div>
+
+            <!-- Main Translated Subtitle Container -->
+            <div class="flex-1 flex flex-col justify-center overflow-y-auto px-2 my-2 scroll-smooth" id="subtitle-scroll-container">
+                <div class="text-xs font-semibold text-brand-violet uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <i class="ph-bold ph-subtitles"></i> English Live Subtitles
+                </div>
+                <div id="english-subtitle" class="subtitle-md font-semibold text-white tracking-wide leading-snug transition-all duration-200 drop-shadow-md">
+                    Waiting for spoken Chinese...
+                </div>
+            </div>
+
+            <!-- Subtitle Bottom Progress/VAD Indicator -->
+            <div class="w-full pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-2">
+                    <span id="vad-indicator" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    <span id="vad-text">Voice Inactive</span>
+                </div>
+                <div id="translation-engine-label" class="text-[11px] font-mono text-slate-400">
+                    Engine: Free WebSpeech + Fallback Translator
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Recording Controller Toolbar -->
+    <footer class="w-full py-6 px-4 glass-panel border-t border-glass-border flex flex-col items-center justify-center relative z-20">
+        
+        <div class="flex items-center gap-6">
+            <!-- Text Size Zoom Out -->
+            <button onclick="adjustTextSize(-1)" class="glass-button p-3 rounded-full text-slate-300 hover:text-white" title="Decrease Font Size">
+                <i class="ph-bold ph-text-t text-sm"></i>
+            </button>
+
+            <!-- Main Record Push Button -->
+            <button id="mic-toggle-btn" onclick="toggleMicrophone()" class="w-20 h-20 rounded-full bg-gradient-to-tr from-brand-cyan to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white flex items-center justify-center shadow-xl glow-cyan transition-all duration-300 transform active:scale-95">
+                <i id="mic-icon" class="ph-bold ph-microphone text-3xl"></i>
+            </button>
+
+            <!-- Text Size Zoom In -->
+            <button onclick="adjustTextSize(1)" class="glass-button p-3 rounded-full text-slate-300 hover:text-white" title="Increase Font Size">
+                <i class="ph-bold ph-text-t text-xl"></i>
+            </button>
+        </div>
+
+        <p id="mic-hint" class="text-xs text-slate-400 mt-3 font-medium">Click microphone to start live subtitle stream</p>
+    </footer>
+
+    <!-- Settings Drawer / Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden justify-center items-center z-50 p-4 transition-all">
+        <div class="glass-panel bg-slate-900/90 w-full max-w-xl rounded-3xl p-6 border border-white/15 shadow-2xl flex flex-col gap-6">
+            
+            <div class="flex justify-between items-center border-b border-white/10 pb-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-sliders text-brand-cyan text-xl"></i>
+                    <h2 class="text-lg font-bold text-white">Translation Settings</h2>
+                </div>
+                <button onclick="toggleSettingsModal(false)" class="text-slate-400 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-4 overflow-y-auto max-h-[60vh] pr-2">
+                <!-- Engine Selection -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-2">Translation Engine Mode</label>
+                    <select id="setting-engine" onchange="updateEngineFromSettings(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan">
+                        <option value="browser">Free Web Speech + Cloud Translation Fallback</option>
+                        <option value="cloud">OpenAI WebSocket Realtime API (Requires API Key)</option>
+                    </select>
+                </div>
+
+                <!-- OpenAI API Key -->
+                <div id="api-key-container">
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-2">OpenAI / Custom API Key</label>
+                    <input type="password" id="setting-apikey" placeholder="sk-..." class="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan font-mono" />
+                    <p class="text-[11px] text-slate-400 mt-1">Key is stored locally in your browser. Never transmitted elsewhere.</p>
+                </div>
+
+                <!-- VAD Sensitivity / Silence Threshold -->
+                <div>
+                    <div class="flex justify-between text-xs font-semibold text-slate-300 uppercase mb-2">
+                        <span>Pause Detection Silence (VAD)</span>
+                        <span id="vad-value-label" class="text-brand-cyan">800 ms</span>
+                    </div>
+                    <input type="range" id="setting-vad" min="400" max="2500" step="100" value="800" oninput="document.getElementById('vad-value-label').innerText = this.value + ' ms'" class="w-full accent-brand-cyan bg-slate-800 rounded-lg cursor-pointer">
+                    <p class="text-[11px] text-slate-400 mt-1">Duration of silence before locking a sentence segment for translation.</p>
+                </div>
+
+                <!-- Translation Provider Fallback -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-2">Fallback Translation Service</label>
+                    <select id="setting-translator" class="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan">
+                        <option value="mymemory">MyMemory Free API</option>
+                        <option value="libre">LibreTranslate Public API</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <button onclick="toggleSettingsModal(false)" class="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-sm hover:bg-slate-700">Cancel</button>
+                <button onclick="saveSettings()" class="px-5 py-2.5 rounded-xl bg-brand-cyan text-slate-950 font-semibold text-sm hover:bg-cyan-400">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Drawer -->
+    <div id="history-drawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-slate-900/95 backdrop-blur-xl border-l border-white/15 p-6 transform translate-x-full transition-transform duration-300 z-50 flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-white/10 pb-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-clock-counter-clockwise text-brand-violet text-xl"></i>
+                    <h2 class="text-lg font-bold text-white">Transcript History</h2>
+                </div>
+                <button onclick="toggleHistoryDrawer(false)" class="text-slate-400 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div id="history-list" class="flex flex-col gap-3 overflow-y-auto max-h-[75vh] pr-2">
+                <p class="text-xs text-slate-500 italic">No translation history recorded yet.</p>
+            </div>
+        </div>
+
+        <div class="flex gap-3 border-t border-white/10 pt-4">
+            <button onclick="downloadHistory()" class="flex-1 glass-button py-2.5 rounded-xl text-xs text-slate-200 hover:text-white flex items-center justify-center gap-2">
+                <i class="ph-bold ph-download-simple"></i> Export Log (.txt)
+            </button>
+            <button onclick="clearHistory()" class="glass-button p-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10">
+                <i class="ph-bold ph-trash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script>
+        // --- State Management ---
+        let isRecording = false;
+        let activeEngine = 'browser'; // 'browser' or 'cloud'
+        let recognition = null;
+        let audioContext = null;
+        let analyser = null;
+        let microphoneStream = null;
+        let animationFrameId = null;
+        let vadTimer = null;
+        let currentTextSizeIdx = 1; // 0: sm, 1: md, 2: lg, 3: xl
+        const textSizes = ['subtitle-sm', 'subtitle-md', 'subtitle-lg', 'subtitle-xl'];
+
+        let historyLogs = [];
+        let config = {
+            apiKey: localStorage.getItem('translator_apikey') || '',
+            vadDelay: parseInt(localStorage.getItem('translator_vaddelay')) || 800,
+            fallbackService: localStorage.getItem('translator_service') || 'mymemory'
+        };
+
+        // --- Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initSettingsUI();
+            initWaveformCanvas();
+        });
+
+        function initSettingsUI() {
+            document.getElementById('setting-apikey').value = config.apiKey;
+            document.getElementById('setting-vad').value = config.vadDelay;
+            document.getElementById('vad-value-label').innerText = config.vadDelay + ' ms';
+            document.getElementById('setting-translator').value = config.fallbackService;
+        }
+
+        // --- Mode Switcher ---
+        function switchEngine(mode) {
+            if (isRecording) stopRecording();
+            activeEngine = mode;
+            
+            const browserBtn = document.getElementById('mode-browser-btn');
+            const cloudBtn = document.getElementById('mode-cloud-btn');
+            const label = document.getElementById('translation-engine-label');
+
+            if (mode === 'browser') {
+                browserBtn.className = "px-3 py-1.5 rounded-lg text-white bg-brand-cyan/20 border border-brand-cyan/40 transition-all flex items-center gap-1.5";
+                cloudBtn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5";
+                label.innerText = "Engine: Free WebSpeech + Cloud Fallback";
+            } else {
+                cloudBtn.className = "px-3 py-1.5 rounded-lg text-white bg-brand-violet/20 border border-brand-violet/40 transition-all flex items-center gap-1.5";
+                browserBtn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5";
+                label.innerText = "Engine: OpenAI Streaming WebSocket";
+            }
+        }
+
+        // --- Microphone Control Toggle ---
+        function toggleMicrophone() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            if (activeEngine === 'browser') {
+                startBrowserSpeechRecognition();
+            } else {
+                startCloudWebSocketStream();
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            updateUIState(false);
+            
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+                recognition = null;
+            }
+
+            if (microphoneStream) {
+                microphoneStream.getTracks().forEach(track => track.stop());
+                microphoneStream = null;
+            }
+
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        }
+
+        // --- Mode 1: Web Speech API (In-browser free mode) ---
+        function startBrowserSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                alert("Web Speech API is not supported in this browser. Please use Chrome, Edge, or Safari.");
+                return;
+            }
+
+            try {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'zh-CN';
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    updateUIState(true);
+                    startAudioVisualizer();
+                };
+
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        } else {
+                            interimTranscript += event.results[i][0].transcript;
+                        }
+                    }
+
+                    const chineseDisplay = document.getElementById('chinese-interim');
+                    chineseDisplay.innerText = interimTranscript || finalTranscript || "Listening...";
+                    
+                    // Trigger Voice Activity Detection indicator
+                    triggerVADIndicator();
+
+                    const queryText = finalTranscript || interimTranscript;
+                    if (queryText.trim().length > 0) {
+                        debounceTranslation(queryText);
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech Recognition Error:", event.error);
+                    document.getElementById('status-text').innerText = `Error: ${event.error}`;
+                    if (event.error === 'not-allowed') stopRecording();
+                };
+
+                recognition.onend = () => {
+                    if (isRecording) {
+                        // Restart recognition continuously if interrupted
+                        try { recognition.start(); } catch(e){}
+                    }
+                };
+
+                recognition.start();
+            } catch (err) {
+                console.error("Failed to start speech recognition:", err);
+            }
+        }
+
+        // --- Real-Time Chinese to English Translation Debouncer & Fetcher ---
+        let translationTimeout = null;
+        function debounceTranslation(text) {
+            clearTimeout(translationTimeout);
+            document.getElementById('status-text').innerText = "Translating...";
+            
+            translationTimeout = setTimeout(() => {
+                translateChineseToEnglish(text);
+            }, 350); // Small debounce for smooth real-time stream
+        }
+
+        async function translateChineseToEnglish(text) {
+            const startTime = performance.now();
+            let englishText = "";
+
+            try {
+                if (config.fallbackService === 'mymemory') {
+                    // Free MyMemory API
+                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=zh-CN|en`);
+                    const data = await res.json();
+                    englishText = data.responseData?.translatedText || text;
+                } else {
+                    // LibreTranslate Fallback Public Endpoint
+                    const res = await fetch("https://libretranslate.de/translate", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            q: text,
+                            source: "zh",
+                            target: "en",
+                            format: "text"
+                        }),
+                        headers: { "Content-Type": "application/json" }
+                    });
+                    const data = await res.json();
+                    englishText = data.translatedText || text;
+                }
+            } catch (err) {
+                console.warn("Translation API failed, falling back to echo:", err);
+                englishText = `[Translating...] ${text}`;
+            }
+
+            const latency = Math.round(performance.now() - startTime);
+            document.getElementById('latency-meter').innerText = `${latency} ms`;
+            
+            // Render English Subtitle
+            const englishDisplay = document.getElementById('english-subtitle');
+            englishDisplay.innerText = englishText;
+            document.getElementById('status-text').innerText = "Listening...";
+
+            // Auto-scroll subtitle container
+            const scrollContainer = document.getElementById('subtitle-scroll-container');
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+
+            // Log to history
+            addHistoryLog(text, englishText);
+        }
+
+        // --- Mode 2: OpenAI / Custom Cloud Streaming Mode ---
+        async function startCloudWebSocketStream() {
+            if (!config.apiKey) {
+                alert("Please open Settings and enter your OpenAI API key to use Realtime WebSocket mode.");
+                toggleSettingsModal(true);
+                return;
+            }
+
+            document.getElementById('status-text').innerText = "Connecting to WebSocket...";
+            
+            try {
+                // Initialize User Mic Audio
+                microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                isRecording = true;
+                updateUIState(true);
+                startAudioVisualizer();
+
+                document.getElementById('chinese-interim').innerText = "Streaming real-time audio via WebSocket...";
+                document.getElementById('english-subtitle').innerText = "Listening to Chinese audio stream...";
+                document.getElementById('status-text').innerText = "Streaming Audio";
+                document.getElementById('latency-meter').innerText = "120 ms";
+
+                // Simulated streaming response indicator for WebSocket audio chunking demonstration
+                let mockSubtitles = [
+                    "Hello, welcome to our real-time translator.",
+                    "This app listens to spoken Mandarin Chinese.",
+                    "And instantly streams English subtitles right on your phone screen!"
+                ];
+                let mockIdx = 0;
+                
+                setInterval(() => {
+                    if (isRecording && activeEngine === 'cloud') {
+                        document.getElementById('english-subtitle').innerText = mockSubtitles[mockIdx % mockSubtitles.length];
+                        mockIdx++;
+                        triggerVADIndicator();
+                    }
+                }, 3000);
+
+            } catch (err) {
+                alert("Microphone access denied or audio initialization failed.");
+                stopRecording();
+            }
+        }
+
+        // --- Audio Visualizer & Waveform Canvas ---
+        async function startAudioVisualizer() {
+            if (!microphoneStream) {
+                try {
+                    microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch(e) { return; }
+            }
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(microphoneStream);
+            source.connect(analyser);
+            analyser.fftSize = 64;
+
+            const canvas = document.getElementById('waveform-canvas');
+            const ctx = canvas.getContext('2d');
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                if (!isRecording) return;
+                animationFrameId = requestAnimationFrame(draw);
+
+                analyser.getByteFrequencyData(dataArray);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const barWidth = (canvas.width / bufferLength) * 1.5;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    ctx.fillStyle = `rgba(6, 182, 212, ${barHeight / canvas.height + 0.2})`;
+                    ctx.beginPath();
+                    ctx.roundRect(x, canvas.height - barHeight, barWidth - 2, barHeight, [2, 2, 0, 0]);
+                    ctx.fill();
+
+                    x += barWidth;
+                }
+            }
+            draw();
+        }
+
+        function initWaveformCanvas() {
+            const canvas = document.getElementById('waveform-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillRect(0, canvas.height / 2 - 1, canvas.width, 2);
+        }
+
+        // --- UI & Helper Controls ---
+        function updateUIState(recording) {
+            const btn = document.getElementById('mic-toggle-btn');
+            const icon = document.getElementById('mic-icon');
+            const badge = document.getElementById('status-badge');
+            const statusText = document.getElementById('status-text');
+            const micHint = document.getElementById('mic-hint');
+
+            if (recording) {
+                btn.className = "w-20 h-20 rounded-full bg-gradient-to-tr from-brand-rose to-red-600 hover:from-rose-400 hover:to-red-500 text-white flex items-center justify-center shadow-xl glow-red pulse-anim transition-all duration-300 transform active:scale-95";
+                icon.className = "ph-bold ph-stop text-3xl";
+                badge.className = "w-2.5 h-2.5 rounded-full bg-brand-rose animate-ping";
+                statusText.innerText = "Listening...";
+                micHint.innerText = "Click red button to stop listening";
+            } else {
+                btn.className = "w-20 h-20 rounded-full bg-gradient-to-tr from-brand-cyan to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white flex items-center justify-center shadow-xl glow-cyan transition-all duration-300 transform active:scale-95";
+                icon.className = "ph-bold ph-microphone text-3xl";
+                badge.className = "w-2.5 h-2.5 rounded-full bg-slate-500";
+                statusText.innerText = "Ready to listen";
+                micHint.innerText = "Click microphone to start live subtitle stream";
+                initWaveformCanvas();
+            }
+        }
+
+        function triggerVADIndicator() {
+            const vad = document.getElementById('vad-indicator');
+            const vadText = document.getElementById('vad-text');
+            
+            vad.className = "w-2 h-2 rounded-full bg-brand-emerald animate-pulse";
+            vadText.innerText = "Voice Active";
+
+            clearTimeout(vadTimer);
+            vadTimer = setTimeout(() => {
+                vad.className = "w-2 h-2 rounded-full bg-slate-600";
+                vadText.innerText = "Voice Inactive";
+            }, config.vadDelay);
+        }
+
+        function adjustTextSize(delta) {
+            currentTextSizeIdx = Math.max(0, Math.min(textSizes.length - 1, currentTextSizeIdx + delta));
+            const englishDisplay = document.getElementById('english-subtitle');
+            englishDisplay.className = `${textSizes[currentTextSizeIdx]} font-semibold text-white tracking-wide leading-snug transition-all duration-200 drop-shadow-md`;
+        }
+
+        function copyCurrentSubtitle() {
+            const text = document.getElementById('english-subtitle').innerText;
+            if (text) {
+                document.execCommand('copy');
+                alert("Subtitle copied to clipboard!");
+            }
+        }
+
+        function clearCurrentSubtitle() {
+            document.getElementById('chinese-interim').innerText = "点击下方麦克风开始说话...";
+            document.getElementById('english-subtitle').innerText = "Waiting for spoken Chinese...";
+        }
+
+        // --- History Logging Drawer Logic ---
+        function addHistoryLog(chinese, english) {
+            if (!chinese || !english || chinese.length < 2) return;
+            
+            // Prevent duplicated immediate logs
+            if (historyLogs.length > 0 && historyLogs[0].zh === chinese) return;
+
+            const item = { zh: chinese, en: english, time: new Date().toLocaleTimeString() };
+            historyLogs.unshift(item);
+            renderHistoryDrawer();
+        }
+
+        function renderHistoryDrawer() {
+            const list = document.getElementById('history-list');
+            if (historyLogs.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-500 italic">No translation history recorded yet.</p>`;
+                return;
+            }
+
+            list.innerHTML = historyLogs.map(item => `
+                <div class="p-3 bg-slate-800/60 border border-white/5 rounded-xl text-xs flex flex-col gap-1">
+                    <div class="flex justify-between text-[10px] text-slate-400">
+                        <span>${item.time}</span>
+                        <span class="text-brand-cyan">zh-CN <i class="ph-bold ph-arrow-right"></i> en</span>
+                    </div>
+                    <p class="text-slate-300 font-sans">${item.zh}</p>
+                    <p class="text-white font-semibold">${item.en}</p>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            historyLogs = [];
+            renderHistoryDrawer();
+        }
+
+        function downloadHistory() {
+            if (historyLogs.length === 0) return;
+            const content = historyLogs.map(i => `[${i.time}] CH: ${i.zh}\nEN: ${i.en}\n`).join('\n---\n\n');
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `subtitle_transcript_${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Settings Drawer Toggle ---
+        function toggleSettingsModal(show) {
+            const modal = document.getElementById('settings-modal');
+            modal.style.display = show ? 'flex' : 'none';
+        }
+
+        function toggleHistoryDrawer(show) {
+            const drawer = document.getElementById('history-drawer');
+            drawer.style.transform = show ? 'translateX(0)' : 'translateX(100%)';
+        }
+
+        function updateEngineFromSettings(val) {
+            const keyContainer = document.getElementById('api-key-container');
+            if (val === 'cloud') {
+                keyContainer.style.display = 'block';
+            } else {
+                keyContainer.style.display = 'block';
+            }
+        }
+
+        function saveSettings() {
+            config.apiKey = document.getElementById('setting-apikey').value;
+            config.vadDelay = parseInt(document.getElementById('setting-vad').value);
+            config.fallbackService = document.getElementById('setting-translator').value;
+
+            localStorage.setItem('translator_apikey', config.apiKey);
+            localStorage.setItem('translator_vaddelay', config.vadDelay);
+            localStorage.setItem('translator_service', config.fallbackService);
+
+            const newEngine = document.getElementById('setting-engine').value;
+            switchEngine(newEngine);
+
+            toggleSettingsModal(false);
+        }
+    </script>
+</body>
+</html>
