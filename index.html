@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <title>Chinese to English Live Translator</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-soft: #eaf2ff;
+      --green: #15803d;
+      --red: #b42318;
+      --border: #dce3ed;
+      --shadow: 0 14px 35px rgba(23, 32, 51, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(145deg, #eef4ff 0%, var(--bg) 45%, #f8fafc 100%);
+    }
+
+    button, select { font: inherit; }
+
+    .app {
+      width: min(1100px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 18px;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      flex: 0 0 58px;
+      border-radius: 17px;
+      color: white;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      box-shadow: var(--shadow);
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    h1 { margin: 0; font-size: clamp(1.45rem, 4vw, 2.25rem); line-height: 1.15; }
+    header p { margin: 5px 0 0; color: var(--muted); }
+
+    .main-card {
+      border: 1px solid rgba(220, 227, 237, 0.85);
+      border-radius: 25px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .listener {
+      padding: 28px 22px 22px;
+      text-align: center;
+      background: linear-gradient(180deg, #f8fbff, #ffffff);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mic {
+      width: 112px;
+      height: 112px;
+      border: 0;
+      border-radius: 50%;
+      color: white;
+      background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+      box-shadow: 0 0 0 11px #dbeafe, 0 12px 25px rgba(37, 99, 235, .28);
+      cursor: pointer;
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+
+    .mic:hover { transform: translateY(-2px); }
+    .mic:focus-visible, button:focus-visible, select:focus-visible { outline: 4px solid rgba(37, 99, 235, .28); outline-offset: 3px; }
+    .mic svg { width: 47px; height: 47px; fill: currentColor; }
+    .mic.listening { background: linear-gradient(145deg, #ef4444, #b91c1c); animation: pulse 1.35s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 11px #fee2e2, 0 12px 25px rgba(185, 28, 28, .24); }
+      50% { box-shadow: 0 0 0 20px rgba(254, 226, 226, .65), 0 12px 25px rgba(185, 28, 28, .24); }
+    }
+
+    #status { margin: 20px 0 4px; min-height: 28px; font-weight: 800; font-size: 1.2rem; }
+    #hint { margin: 0; color: var(--muted); min-height: 24px; }
+
+    .language-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    select, .small-button {
+      min-height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      color: var(--text);
+      padding: 9px 13px;
+    }
+
+    .small-button { cursor: pointer; font-weight: 700; }
+    .small-button:hover { background: #f8fafc; }
+
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .output {
+      min-height: 245px;
+      border: 1px solid var(--border);
+      border-radius: 19px;
+      padding: 20px;
+      background: #fbfcfe;
+    }
+
+    .output.english { background: var(--blue-soft); border-color: #cfe0ff; }
+    .label { color: var(--muted); font-weight: 800; font-size: .95rem; letter-spacing: .02em; }
+    .english .label { color: var(--blue-dark); }
+
+    .text {
+      margin-top: 15px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
+    }
+
+    #chineseText { font-size: clamp(1.35rem, 3.6vw, 2.15rem); }
+    #englishText { font-size: clamp(1.75rem, 5vw, 3.3rem); font-weight: 800; line-height: 1.25; }
+    .placeholder { color: #98a2b3; font-weight: 500 !important; }
+    .interim { color: #7b8494; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 20px 20px;
+    }
+
+    .toolbar-group { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .action {
+      min-height: 47px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 10px 16px;
+      background: white;
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .action.primary { color: white; border-color: var(--blue); background: var(--blue); }
+    .action.primary:hover { background: var(--blue-dark); }
+    .action:disabled { opacity: .5; cursor: not-allowed; }
+
+    .notice {
+      margin-top: 14px;
+      padding: 13px 15px;
+      border-radius: 13px;
+      color: #475467;
+      background: rgba(255,255,255,.82);
+      border: 1px solid var(--border);
+      font-size: .91rem;
+      line-height: 1.45;
+    }
+
+    .error { color: var(--red) !important; }
+    .success { color: var(--green) !important; }
+
+    @media (max-width: 720px) {
+      .app { padding: 14px; }
+      header { align-items: flex-start; }
+      .logo { width: 49px; height: 49px; flex-basis: 49px; border-radius: 14px; font-size: 23px; }
+      .output-grid { grid-template-columns: 1fr; padding: 14px; }
+      .output { min-height: 190px; }
+      .toolbar { padding: 0 14px 14px; }
+      .toolbar, .toolbar-group { width: 100%; }
+      .toolbar-group .action { flex: 1 1 130px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="logo" aria-hidden="true">译</div>
+      <div>
+        <h1>Chinese to English Translator</h1>
+        <p>Speak Chinese and see the English translation on screen.</p>
+      </div>
+    </header>
+
+    <section class="main-card" aria-label="Live translator">
+      <div class="listener">
+        <button id="micButton" class="mic" type="button" aria-label="Start listening" title="Start or stop listening">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.92V21h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-3.08A7 7 0 0 1 5 11a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>
+        </button>
+        <div id="status" role="status" aria-live="polite">Tap the microphone to begin</div>
+        <p id="hint">Allow microphone access when the browser asks.</p>
+
+        <div class="language-row">
+          <label for="dialect"><strong>Chinese:</strong></label>
+          <select id="dialect">
+            <option value="zh-CN">普通话 Mandarin (China)</option>
+            <option value="zh-SG">华语 Mandarin (Singapore)</option>
+            <option value="zh-TW">國語 Mandarin (Taiwan)</option>
+            <option value="zh-HK">粵語 Cantonese (Hong Kong)</option>
+          </select>
+          <button id="autoSpeakButton" class="small-button" type="button" aria-pressed="false">🔊 Auto-speak: Off</button>
+        </div>
+      </div>
+
+      <div class="output-grid">
+        <section class="output" aria-labelledby="chineseLabel">
+          <div id="chineseLabel" class="label">CHINESE HEARD</div>
+          <div id="chineseText" class="text placeholder" aria-live="polite">Chinese speech will appear here...</div>
+        </section>
+
+        <section class="output english" aria-labelledby="englishLabel">
+          <div id="englishLabel" class="label">ENGLISH TRANSLATION</div>
+          <div id="englishText" class="text placeholder" aria-live="assertive">English translation will appear here...</div>
+        </section>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button id="startButton" class="action primary" type="button">Start Listening</button>
+          <button id="stopButton" class="action" type="button" disabled>Stop</button>
+        </div>
+        <div class="toolbar-group">
+          <button id="speakButton" class="action" type="button" disabled>🔊 Read English</button>
+          <button id="copyButton" class="action" type="button" disabled>Copy English</button>
+          <button id="clearButton" class="action" type="button">Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="notice">
+      For best results, use the latest Chrome or Microsoft Edge over HTTPS. This single-file demo uses the browser's speech-recognition service and the public MyMemory translation endpoint, so an internet connection is normally required. Avoid using it for confidential conversations.
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const micButton = document.getElementById('micButton');
+      const startButton = document.getElementById('startButton');
+      const stopButton = document.getElementById('stopButton');
+      const clearButton = document.getElementById('clearButton');
+      const speakButton = document.getElementById('speakButton');
+      const copyButton = document.getElementById('copyButton');
+      const autoSpeakButton = document.getElementById('autoSpeakButton');
+      const dialect = document.getElementById('dialect');
+      const status = document.getElementById('status');
+      const hint = document.getElementById('hint');
+      const chineseText = document.getElementById('chineseText');
+      const englishText = document.getElementById('englishText');
+
+      let recognition = null;
+      let shouldListen = false;
+      let isRecognizing = false;
+      let autoSpeak = false;
+      let finalChinese = '';
+      let latestEnglish = '';
+      let translationTimer = null;
+      let translationController = null;
+      let translationSequence = 0;
+
+      function setStatus(message, type = '') {
+        status.textContent = message;
+        status.className = type;
+      }
+
+      function setListeningUI(active) {
+        micButton.classList.toggle('listening', active);
+        micButton.setAttribute('aria-label', active ? 'Stop listening' : 'Start listening');
+        startButton.disabled = active;
+        stopButton.disabled = !active;
+        dialect.disabled = active;
+      }
+
+      function showChinese(finalText, interimText = '') {
+        const combined = [finalText, interimText].filter(Boolean).join(finalText && interimText ? '\n' : '');
+        if (!combined) {
+          chineseText.textContent = 'Chinese speech will appear here...';
+          chineseText.className = 'text placeholder';
+          return;
+        }
+        chineseText.textContent = combined;
+        chineseText.className = interimText ? 'text interim' : 'text';
+      }
+
+      function showEnglish(text, placeholder = false) {
+        englishText.textContent = text;
+        englishText.className = placeholder ? 'text placeholder' : 'text';
+        latestEnglish = placeholder ? '' : text;
+        speakButton.disabled = !latestEnglish;
+        copyButton.disabled = !latestEnglish;
+      }
+
+      function createRecognition() {
+        if (!SpeechRecognition) return null;
+
+        const instance = new SpeechRecognition();
+        instance.lang = dialect.value;
+        instance.continuous = true;
+        instance.interimResults = true;
+        instance.maxAlternatives = 1;
+
+        instance.onstart = () => {
+          isRecognizing = true;
+          setListeningUI(true);
+          setStatus('Listening...', 'success');
+          hint.textContent = 'Speak clearly in Chinese. Pause briefly after each sentence.';
+        };
+
+        instance.onresult = (event) => {
+          let interimChinese = '';
+          let newlyFinalized = '';
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript.trim();
+            if (!transcript) continue;
+            if (event.results[i].isFinal) newlyFinalized += (newlyFinalized ? ' ' : '') + transcript;
+            else interimChinese += (interimChinese ? ' ' : '') + transcript;
+          }
+
+          if (newlyFinalized) {
+            finalChinese = newlyFinalized;
+            showChinese(finalChinese);
+            queueTranslation(finalChinese);
+          } else {
+            showChinese(finalChinese, interimChinese);
+          }
+        };
+
+        instance.onerror = (event) => {
+          const messages = {
+            'not-allowed': 'Microphone permission was blocked. Allow microphone access in the browser settings.',
+            'service-not-allowed': 'Speech recognition is unavailable or blocked by the browser.',
+            'no-speech': 'No speech was detected. Please try again.',
+            'audio-capture': 'No working microphone was found.',
+            'network': 'Speech recognition had a network problem.',
+            'language-not-supported': 'The selected Chinese language is not supported on this device.'
+          };
+          const message = messages[event.error] || `Speech recognition error: ${event.error}`;
+          setStatus(message, 'error');
+          hint.textContent = 'Try Chrome or Microsoft Edge and make sure this page is opened using HTTPS.';
+          if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(event.error)) {
+            shouldListen = false;
+          }
+        };
+
+        instance.onend = () => {
+          isRecognizing = false;
+          if (shouldListen) {
+            setTimeout(() => {
+              if (!shouldListen || isRecognizing) return;
+              try {
+                recognition.lang = dialect.value;
+                recognition.start();
+              } catch (error) {
+                console.warn('Recognition restart delayed:', error);
+              }
+            }, 450);
+          } else {
+            setListeningUI(false);
+            if (!status.classList.contains('error')) setStatus('Stopped');
+            hint.textContent = 'Tap the microphone when you want to translate again.';
+          }
+        };
+
+        return instance;
+      }
+
+      function startListening() {
+        if (!SpeechRecognition) {
+          setStatus('Speech recognition is not supported in this browser.', 'error');
+          hint.textContent = 'Open this page in a current version of Chrome or Microsoft Edge.';
+          return;
+        }
+        if (isRecognizing) return;
+
+        shouldListen = true;
+        recognition = createRecognition();
+        try {
+          recognition.start();
+          setStatus('Starting microphone...');
+        } catch (error) {
+          shouldListen = false;
+          setListeningUI(false);
+          setStatus('Could not start the microphone. Please refresh and try again.', 'error');
+          console.error(error);
+        }
+      }
+
+      function stopListening() {
+        shouldListen = false;
+        if (recognition && isRecognizing) recognition.stop();
+        setListeningUI(false);
+        window.speechSynthesis.cancel();
+      }
+
+      function queueTranslation(text) {
+        clearTimeout(translationTimer);
+        translationTimer = setTimeout(() => translateText(text), 250);
+      }
+
+      async function translateText(text) {
+        const cleanText = text.trim();
+        if (!cleanText) return;
+
+        if (translationController) translationController.abort();
+        translationController = new AbortController();
+        const currentSequence = ++translationSequence;
+
+        showEnglish('Translating...', true);
+        setStatus(shouldListen ? 'Listening and translating...' : 'Translating...');
+
+        try {
+          const source = dialect.value === 'zh-TW' || dialect.value === 'zh-HK' ? 'zh-TW' : 'zh-CN';
+          const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${encodeURIComponent(source + '|en')}`;
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            signal: translationController.signal
+          });
+
+          if (!response.ok) throw new Error(`Translation service returned ${response.status}`);
+          const data = await response.json();
+          if (currentSequence !== translationSequence) return;
+
+          const translated = data && data.responseData && data.responseData.translatedText
+            ? decodeHtml(data.responseData.translatedText).trim()
+            : '';
+
+          if (!translated) throw new Error('No translation was returned');
+          showEnglish(translated);
+          setStatus(shouldListen ? 'Listening...' : 'Translation ready', 'success');
+          if (autoSpeak) speakEnglish();
+        } catch (error) {
+          if (error.name === 'AbortError') return;
+          console.error(error);
+          showEnglish('Translation unavailable. Check your internet connection and try again.', false);
+          setStatus('Translation service unavailable', 'error');
+          hint.textContent = 'The public translation service may be busy or rate-limited.';
+        }
+      }
+
+      function decodeHtml(value) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = value;
+        return textarea.value;
+      }
+
+      function speakEnglish() {
+        if (!latestEnglish || !('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(latestEnglish);
+        utterance.lang = 'en-SG';
+        utterance.rate = 0.95;
+        utterance.pitch = 1;
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => v.lang === 'en-SG') || voices.find(v => v.lang.startsWith('en-'));
+        if (preferredVoice) utterance.voice = preferredVoice;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      async function copyEnglish() {
+        if (!latestEnglish) return;
+        try {
+          await navigator.clipboard.writeText(latestEnglish);
+          setStatus('English translation copied', 'success');
+        } catch {
+          const area = document.createElement('textarea');
+          area.value = latestEnglish;
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand('copy');
+          area.remove();
+          setStatus('English translation copied', 'success');
+        }
+      }
+
+      function clearAll() {
+        finalChinese = '';
+        latestEnglish = '';
+        translationSequence++;
+        clearTimeout(translationTimer);
+        if (translationController) translationController.abort();
+        window.speechSynthesis.cancel();
+        showChinese('');
+        showEnglish('English translation will appear here...', true);
+        setStatus(shouldListen ? 'Listening...' : 'Tap the microphone to begin', shouldListen ? 'success' : '');
+      }
+
+      micButton.addEventListener('click', () => shouldListen ? stopListening() : startListening());
+      startButton.addEventListener('click', startListening);
+      stopButton.addEventListener('click', stopListening);
+      clearButton.addEventListener('click', clearAll);
+      speakButton.addEventListener('click', speakEnglish);
+      copyButton.addEventListener('click', copyEnglish);
+      autoSpeakButton.addEventListener('click', () => {
+        autoSpeak = !autoSpeak;
+        autoSpeakButton.textContent = `🔊 Auto-speak: ${autoSpeak ? 'On' : 'Off'}`;
+        autoSpeakButton.setAttribute('aria-pressed', String(autoSpeak));
+      });
+      dialect.addEventListener('change', () => {
+        if (recognition) recognition.lang = dialect.value;
+      });
+
+      if (!SpeechRecognition) {
+        micButton.disabled = true;
+        startButton.disabled = true;
+        setStatus('This browser does not support live speech recognition.', 'error');
+        hint.textContent = 'Please use the latest Chrome or Microsoft Edge.';
+      }
+    })();
+  </script>
+</body>
+</html>
