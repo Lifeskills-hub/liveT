@@ -1029,7 +1029,7 @@
       }
 
       const uniqueName =
-        `${TRANSFER_MODEL_NAME}-${Date.now()}`;
+        `\( {TRANSFER_MODEL_NAME}- \){Date.now()}`;
 
       transferRecognizer =
         baseRecognizer.createTransfer(uniqueName);
@@ -1211,14 +1211,17 @@
       button.textContent = "Recording...";
 
       setStatus(`Recording: ${label}`);
-      addLog(`Recording sample for "${label}"...`);
+      addLog(`Recording sample for "${label}" (5 seconds)...`);
 
       try {
         /*
           collectExample records a short audio window and adds its
           spectrogram embedding to the transfer-learning dataset.
+          durationMultiplier: 5 → approximately 5 seconds
         */
-        await transferRecognizer.collectExample(label);
+        await transferRecognizer.collectExample(label, {
+          durationMultiplier: 5
+        });
 
         updateSampleCountsFromRecognizer();
 
@@ -1406,7 +1409,7 @@
                 `${percentage}%`;
 
               elements.trainingProgressText.textContent =
-                `Epoch ${currentEpoch}/30.${accuracy}`;
+                `Epoch \( {currentEpoch}/30. \){accuracy}`;
 
               await tf.nextFrame();
             }
@@ -1760,7 +1763,7 @@
 
         const newTransferRecognizer =
           baseRecognizer.createTransfer(
-            `${TRANSFER_MODEL_NAME}-loaded-${Date.now()}`
+            `\( {TRANSFER_MODEL_NAME}-loaded- \){Date.now()}`
           );
 
         newTransferRecognizer.loadExamples(fileData);
@@ -1949,7 +1952,7 @@
 
       elements.log.textContent =
         existing
-          ? `${newEntry}\n${existing}`
+          ? `\( {newEntry}\n \){existing}`
           : newEntry;
     }
 
